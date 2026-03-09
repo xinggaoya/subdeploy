@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use ignore::WalkBuilder;
+use serde_yaml::Value;
 use tar::Builder;
 use thiserror::Error;
 
@@ -43,6 +44,10 @@ pub enum PackageError {
     MissingComposeFile,
     #[error("部署文件被 .gitignore 规则排除: {0}")]
     RequiredFileIgnored(PathBuf),
+    #[error("compose 文件缺少 services 定义: {0}")]
+    MissingComposeServices(PathBuf),
+    #[error("compose 文件格式错误: {path}: {message}")]
+    InvalidComposeFile { path: PathBuf, message: String },
     #[error("文件路径不在项目目录内: {0}")]
     PathOutsideProject(PathBuf),
     #[error("未找到可归档的项目文件")]
@@ -127,6 +132,42 @@ pub fn package_project(
         compose_file_rel: inspection.compose_file_rel,
         included_files: files,
     })
+}
+
+pub fn list_compose_services(
+    project_dir: &Path,
+    compose_file_rel: &Path,
+) -> Result<Vec<String>, PackageError> {
+    let compose_path = project_dir.join(compose_file_rel);
+    let content = fs::read_to_string(&compose_path)?;
+    let document: Value =
+        serde_yaml::from_str(&content).map_err(|error| PackageError::InvalidComposeFile {
+            path: compose_file_rel.to_path_buf(),
+            message: error.to_string(),
+        })?;
+    let services = document
+        .get("services")
+        .and_then(Value::as_mapping)
+        .ok_or_else(|| PackageError::MissingComposeServices(compose_file_rel.to_path_buf()))?;
+
+    let mut names = Vec::with_capacity(services.len());
+    for key in services.keys() {
+        let Some(service_name) = key.as_str() else {
+            return Err(PackageError::InvalidComposeFile {
+                path: compose_file_rel.to_path_buf(),
+                message: "services 下存在非字符串服务名".to_owned(),
+            });
+        };
+        names.push(service_name.to_owned());
+    }
+
+    if names.is_empty() {
+        return Err(PackageError::MissingComposeServices(
+            compose_file_rel.to_path_buf(),
+        ));
+    }
+
+    Ok(names)
 }
 
 fn collect_files(project_dir: &Path) -> Result<Vec<PathBuf>, PackageError> {
@@ -242,7 +283,9 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use super::{inspect_project, package_project, PackageError, PackageRequest};
+    use super::{
+        inspect_project, list_compose_services, package_project, PackageError, PackageRequest,
+    };
 
     #[test]
     fn inspect_project_respects_gitignore() {
@@ -344,5 +387,47 @@ mod tests {
             .included_files
             .iter()
             .any(|path| path == Path::new("bundle.tar.gz")));
+    }
+
+    #[test]
+    fn list_compose_services_reads_single_service() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(
+            dir.path().join("docker-compose.yml"),
+            "services:\n  web:\n    image: demo:latest\n",
+        )
+        .unwrap();
+
+        let services = list_compose_services(dir.path(), Path::new("docker-compose.yml")).unwrap();
+        assert_eq!(services, vec!["web"]);
+    }
+
+    #[test]
+    fn list_compose_services_reads_multiple_services() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(
+            dir.path().join("docker-compose.yml"),
+            "services:\n  api:\n    image: demo:latest\n  worker:\n    image: demo:latest\n",
+        )
+        .unwrap();
+
+        let services = list_compose_services(dir.path(), Path::new("docker-compose.yml")).unwrap();
+        assert_eq!(services, vec!["api", "worker"]);
+    }
+
+    #[test]
+    fn list_compose_services_requires_services_section() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(
+            dir.path().join("docker-compose.yml"),
+            "version: '3.9'\nnetworks: {}\n",
+        )
+        .unwrap();
+
+        let error = list_compose_services(dir.path(), Path::new("docker-compose.yml")).unwrap_err();
+        assert!(matches!(error, PackageError::MissingComposeServices(_)));
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "subdeploy"
+name = "sd"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,3 +12,6 @@ clap.workspace = true
 subdeploy-core = { path = "../../crates/subdeploy-core" }
 subdeploy-packager = { path = "../../crates/subdeploy-packager" }
 subdeploy-remote = { path = "../../crates/subdeploy-remote" }
+
+[dev-dependencies]
+tempfile.workspace = true

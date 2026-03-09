@@ -1,6 +1,6 @@
-# subdeploy
+# subdeploy (`sd`)
 
-一个可迁移的 Rust 部署 CLI，用来把带 `Dockerfile` 和 Compose 文件的项目，通过 SSH 上传到远端服务器并完成构建、启动和可选健康检查。
+一个可迁移的 Rust 部署 CLI，用来把带 `Dockerfile` 和 Compose 文件的项目，通过 SSH 上传到远端服务器并完成构建、启动和可选健康检查。安装后的可执行文件名为 `sd`。
 
 当前实现是一个独立小 workspace，后续可以整体迁移到别的仓库，不依赖 `cliproxy-rs` 现有业务 crate。
 
@@ -16,6 +16,7 @@
 - `validate`：校验项目是否满足部署前提
 - `package`：生成部署归档，便于手工检查
 - `deploy`：执行完整部署
+- 省略 `deploy` 子命令时，默认直接执行部署
 
 部署流程如下：
 
@@ -76,14 +77,14 @@ cargo install --path /home/xinggao/dev/rust/cliproxy-rs/subdeploy/apps/subdeploy
 查看帮助：
 
 ```bash
-subdeploy --help
-subdeploy deploy --help
+sd --help
+sd deploy --help
 ```
 
 ### 1. 校验项目
 
 ```bash
-subdeploy validate --project-dir .
+sd validate --project-dir .
 ```
 
 示例输出会包含：
@@ -98,7 +99,7 @@ subdeploy validate --project-dir .
 ### 2. 生成归档
 
 ```bash
-subdeploy package \
+sd package \
   --project-dir . \
   --output ./build/deploy.tar.gz
 ```
@@ -110,25 +111,29 @@ subdeploy package \
 最小示例：
 
 ```bash
-subdeploy deploy \
+sd -u root -p 'your-password' -h 192.168.1.10
+```
+
+上面的默认部署等价于：
+
+```bash
+sd deploy \
   --project-dir . \
   --host 192.168.1.10 \
   --user root \
-  --password 'your-password' \
-  --service cliproxy \
-  --image-tag cliproxy:latest
+  --password 'your-password'
 ```
+
+默认行为：
+
+- `--image-tag` 不传时自动使用 `<project_name>:latest`
+- `--service` 不传时，若 compose 中只有一个服务则自动推断
+- compose 中有多个服务时会报错，并提示你显式传入 `--service`
 
 带健康检查：
 
 ```bash
-subdeploy deploy \
-  --project-dir . \
-  --host 192.168.1.10 \
-  --user root \
-  --password 'your-password' \
-  --service cliproxy \
-  --image-tag cliproxy:latest \
+sd -u root -p 'your-password' -h 192.168.1.10 \
   --health-url http://192.168.1.10:8319/health \
   --health-timeout-secs 300 \
   --poll-interval-secs 5
@@ -137,54 +142,53 @@ subdeploy deploy \
 显式指定部署文件：
 
 ```bash
-subdeploy deploy \
+sd deploy \
   --project-dir . \
   --dockerfile deploy/Dockerfile \
   --compose-file deploy/compose.yml \
-  --host 192.168.1.10 \
-  --user root \
-  --password 'your-password' \
+  -h 192.168.1.10 \
+  -u root \
+  -p 'your-password' \
   --service app \
   --image-tag app:latest
 ```
 
 ## 参数说明
 
-`deploy` 关键参数如下：
+部署关键参数如下：
 
 - `--project-dir`：项目根目录，默认当前目录
 - `--dockerfile`：自定义 Dockerfile 路径，不传默认 `Dockerfile`
 - `--compose-file`：自定义 Compose 文件路径，不传自动按 `docker-compose.yml`、`compose.yml` 顺序探测
-- `--host`：远端服务器地址
-- `--port`：SSH 端口，默认 `22`
-- `--user`：SSH 用户名
-- `--password`：SSH 密码
-- `--service`：Compose 内服务名，用于读取最近日志
-- `--image-tag`：远端 `docker build -t` 的镜像名
+- `-h, --host`：远端服务器地址
+- `-P, --port`：SSH 端口，默认 `22`
+- `-u, --user`：SSH 用户名
+- `-p, --password`：SSH 密码
+- `--service`：Compose 内服务名；不传时自动推断单服务 compose
+- `--image-tag`：远端 `docker build -t` 的镜像名；不传时默认 `<project_name>:latest`
 - `--remote-dir`：远端部署目录，默认 `/root/<project_name>-deploy`
 - `--health-url`：可选健康检查地址
 - `--health-timeout-secs`：健康检查超时秒数
 - `--poll-interval-secs`：健康检查轮询间隔秒数
 - `--no-cache`：远端构建时传递 `docker build --no-cache`
+- `--help`：打印帮助；注意 `-h` 已用于 `--host`
 
 ## 当前仓库示例
 
 对 `cliproxy-rs` 当前仓库，可以先做校验：
 
 ```bash
-subdeploy validate --project-dir /home/xinggao/dev/rust/cliproxy-rs
+sd validate --project-dir /home/xinggao/dev/rust/cliproxy-rs
 ```
 
 当前仓库的部署示例：
 
 ```bash
-subdeploy deploy \
+sd \
   --project-dir /home/xinggao/dev/rust/cliproxy-rs \
-  --host sub.moncn.cn \
-  --user root \
-  --password 'your-password' \
-  --service cliproxy \
-  --image-tag cliproxy:latest \
+  -h sub.moncn.cn \
+  -u root \
+  -p 'your-password' \
   --health-url http://sub.moncn.cn:8319/health
 ```
 
@@ -233,7 +237,7 @@ subdeploy deploy \
 ```bash
 cargo fmt --all --manifest-path subdeploy/Cargo.toml
 cargo test --manifest-path subdeploy/Cargo.toml
-cargo run --manifest-path subdeploy/Cargo.toml -p subdeploy -- --help
+cargo run --manifest-path subdeploy/Cargo.toml -p sd -- --help
 ```
 
 清理构建产物：
