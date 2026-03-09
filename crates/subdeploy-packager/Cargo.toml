@@ -1,0 +1,16 @@
+[package]
+name = "subdeploy-packager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description.workspace = true
+
+[dependencies]
+flate2.workspace = true
+ignore.workspace = true
+tar.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

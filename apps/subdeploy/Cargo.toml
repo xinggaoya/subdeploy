@@ -1,0 +1,14 @@
+[package]
+name = "subdeploy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+subdeploy-core = { path = "../../crates/subdeploy-core" }
+subdeploy-packager = { path = "../../crates/subdeploy-packager" }
+subdeploy-remote = { path = "../../crates/subdeploy-remote" }

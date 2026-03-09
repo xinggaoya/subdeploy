@@ -1,0 +1,11 @@
+[package]
+name = "subdeploy-remote"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description.workspace = true
+
+[dependencies]
+ssh2.workspace = true
+thiserror.workspace = true
