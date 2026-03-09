@@ -178,6 +178,10 @@ fn run_deploy(args: DeployArgs) -> Result<()> {
     );
     println!("项目目录: {}", inspection.project_dir.display());
     println!("远端目录: {}", deploy_request.remote_dir);
+    println!(
+        "Compose 文件: {}",
+        deploy_request.compose.compose_file_rel.display()
+    );
     println!("服务名: {}", deploy_request.compose.service_name);
     println!("镜像标签: {}", deploy_request.compose.image_tag);
 

@@ -105,7 +105,7 @@ RELEASES_DIR={releases_dir}
 RELEASE_DIR={release_dir}
 CURRENT_LINK={current_link}
 REMOTE_ARCHIVE={remote_archive}
-mkdir -p "$RELEASES_DIR"
+mkdir -p "$REMOTE_DIR"
 
 if [ -L "$CURRENT_LINK" ] || [ -d "$CURRENT_LINK" ]; then
   OLD_CURRENT="$(readlink -f "$CURRENT_LINK" || true)"
@@ -115,7 +115,7 @@ if [ -L "$CURRENT_LINK" ] || [ -d "$CURRENT_LINK" ]; then
   fi
 fi
 
-rm -rf "$RELEASE_DIR"
+rm -rf "$RELEASES_DIR"
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$REMOTE_ARCHIVE" -C "$RELEASE_DIR"
 rm -f "$REMOTE_ARCHIVE"
@@ -124,7 +124,7 @@ ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 cd "$CURRENT_LINK"
 
 docker build {no_cache}-t {image_tag} -f {dockerfile} .
-docker compose -f {compose_file} up -d
+docker compose -f {compose_file} up -d --force-recreate --remove-orphans
 docker compose -f {compose_file} ps
 docker logs {service_name} --tail 50 || true
 "#,
@@ -204,6 +204,8 @@ mod tests {
         assert!(down_idx < build_idx);
         assert!(build_idx < up_idx);
         assert!(script.contains("ln -sfn"));
+        assert!(script.contains("rm -rf \"$RELEASES_DIR\""));
+        assert!(script.contains("--force-recreate --remove-orphans"));
     }
 
     #[test]

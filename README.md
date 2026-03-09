@@ -127,8 +127,10 @@ sd deploy \
 默认行为：
 
 - `--image-tag` 不传时自动使用 `<project_name>:latest`
+- `--compose-file` 不传时，优先使用 `docker-compose.yml`，没有时再回退到 `compose.yml`
 - `--service` 不传时，若 compose 中只有一个服务则自动推断
 - compose 中有多个服务时会报错，并提示你显式传入 `--service`
+- 每次部署都会先停止旧服务、清空远端旧 release，再覆盖部署最新版本
 
 带健康检查：
 
@@ -219,7 +221,7 @@ sd \
     └── <release-id-2>/
 ```
 
-部署时会先尝试在旧 `current` 目录下执行一次 `docker compose down`，然后切换到新 release 并启动。这种方式简单直接，但当前版本不是零停机部署。
+部署时会先尝试在旧 `current` 目录下执行一次 `docker compose down`，然后清空远端旧 releases，只保留本次部署的新 release，再启动服务。这样重复部署时不会被上一次残留文件阻塞，但当前版本仍不是零停机部署。
 
 ## 已知限制
 
