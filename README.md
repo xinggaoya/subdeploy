@@ -72,6 +72,12 @@ cargo install --path /path/to/subdeploy/apps/subdeploy
 cargo install --path /home/xinggao/dev/rust/cliproxy-rs/subdeploy/apps/subdeploy
 ```
 
+Windows 安装说明：
+
+- 当前支持目标为 `x86_64-pc-windows-msvc`
+- Windows 上执行 `cargo install --path apps/subdeploy` 时，不再需要额外准备 Perl 来编译 vendored OpenSSL
+- Linux 和 macOS 仍然保留 vendored OpenSSL 构建策略，尽量减少系统 OpenSSL 头文件依赖
+
 ## 命令说明
 
 查看帮助：
