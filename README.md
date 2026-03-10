@@ -69,7 +69,7 @@ cargo install --path /path/to/subdeploy/apps/subdeploy
 如果你当前就在本仓库目录：
 
 ```bash
-cargo install --path /home/xinggao/dev/rust/cliproxy-rs/subdeploy/apps/subdeploy
+cargo install --git https://github.com/xinggaoya/subdeploy
 ```
 
 ## 命令说明
